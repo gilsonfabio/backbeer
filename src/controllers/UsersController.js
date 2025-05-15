@@ -67,5 +67,19 @@ module.exports = {
            
         return response.json({usrId});
     },
-    
+
+    async searchUser(request, response) {
+        let cpf = request.params.cpf;
+
+        const user = await connection('usuarios')
+            .where('usrCpf', cpf)
+            .select('usrId','usrNome','usrNascimento' )
+            .first();
+          
+        if (!user) {
+            return response.status(400).json({ error: 'Não encontrou usuário c/ este CPF'});
+        } 
+
+        return response.json(user);
+    },   
 };
