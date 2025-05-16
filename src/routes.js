@@ -19,6 +19,7 @@ routes.get('/', (request, response) => {
 routes.post('/signIn', UsersController.signIn);
 routes.post('/newuser', UsersController.newuser);
 routes.get('/searchUser/:cpf', UsersController.searchUser);
+routes.get('/busUser/:idUsr', UsersController.busUser);
 
 routes.get('/produtos', ProductsController.index);
 routes.post('/newproduct', ProductsController.create);

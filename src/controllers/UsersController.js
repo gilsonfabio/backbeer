@@ -81,5 +81,33 @@ module.exports = {
         } 
 
         return response.json(user);
-    },   
+    }, 
+    
+    async busUser(request, response) {
+        let id = request.params.idUsr;
+
+        const datAtual = new Date();
+        const day = String(datAtual.getDate()).padStart(2, '0');
+        const month = String(datAtual.getMonth() + 1).padStart(2, '0');
+        const year = datAtual.getFullYear();
+
+        const hours = String(datAtual.getHours()).padStart(2, '0');
+        const minutes = String(datAtual.getMinutes()).padStart(2, '0');
+        const seconds = String(datAtual.getSeconds()).padStart(2, '0');
+       
+        const user = await connection('usuarios')
+            .where('usrId', id)
+            .select('usrId','usrNome','usrNascimento', 'usrCpf' )
+            .first();
+          
+        if (!user) {
+            return response.status(400).json({ error: 'Não encontrou usuário c/ este CPF'});
+        } 
+
+        const dados = year + seconds + minutes + month + day + user.usrCpf + hours + id + user.usrNome 
+
+        //console.log(dados);
+
+        return response.json(dados);
+    },
 };
