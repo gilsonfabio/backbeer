@@ -8,17 +8,17 @@ module.exports = {
 	
 	async auth (request, response) {
 		
-		//console.log(request.body);
+		console.log(request.body);
 
         const id = request.body.creUsrId; 
 
         const idCre = request.body.creId; 
         const creValor = request.body.creValor.replace("," , ".");
-        //console.log('Valor Original:', request.body.creValor);
+        console.log('Valor Original:', request.body.creValor);
         let valor_cre = parseFloat(creValor).toFixed(2);
-        //console.log('Valor Crédito:',valor_cre);       
+        console.log('Valor Crédito:',valor_cre);       
         let vlrCredito = valor_cre.toString().replace("," , ".");
-        //console.log('Valor Aposta:',vlrCredito);
+        console.log('Valor Aposta:',vlrCredito);
 		let vlr_cre = vlrCredito;
         
         const usuario = await connection('usuarios')
@@ -31,9 +31,9 @@ module.exports = {
         let credAtual = 0.00;
         credAtual = Number(usuario[0].usrSldDisponivel).toFixed(2) + Number(creValor).toFixed(2);
                
-		//console.log('Valor:',vlr_cli);
-        //console.log('Usuario:',nome_cli);
-        //console.log('Cpf Usuario:',cpf_cli);
+		console.log('Valor:',vlr_cli);
+        console.log('Usuario:',nome_cli);
+        console.log('Cpf Usuario:',cpf_cli);
 		
         let body = {
 	        calendario: {
