@@ -18,8 +18,7 @@ const sandBox = process.env.EFIPAY_SANDBOX;
 //console.log('credentials');
 
 module.exports = {
-	// PRODUÇÃO = false
-	// HOMOLOGAÇÃO = true
+	// PRODUÇÃO = false      // HOMOLOGAÇÃO = true
 	sandbox: false,
 	client_id: client,
 	client_secret: secret,
