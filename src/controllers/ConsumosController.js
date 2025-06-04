@@ -43,4 +43,17 @@ module.exports = {
 
         return response.json({conId});
     },    
+
+    async historico (request, response) {
+        let id = request.params.id
+
+        const consumos = await connection('consumos')
+        .join('produtos', 'idProd', 'consumos.conPrdId')
+        .where('conUsrId', id)
+        .orderBy('conId', 'desc')
+        .limit(10)
+        .select(['consumos.*','produtos.proDescricao', 'produtos.proReferencia', 'produtos.proAvatar']);
+    
+        return response.json(consumos);
+    },
 };

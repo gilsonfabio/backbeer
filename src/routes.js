@@ -49,6 +49,6 @@ routes.post('/certificado', EfipayController.certificado);
 
 routes.get('/consumos', ConsumosController.index);
 routes.post('/newconsumo', ConsumosController.create);
-
+routes.get('/historico/:id', ConsumosController.historico);
 
 module.exports = routes;
