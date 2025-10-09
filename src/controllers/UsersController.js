@@ -42,7 +42,7 @@ module.exports = {
         //let refreshToken = jwt.sign({ id: user.usrId, name: user.usrNome, email: user.usrEmail, nivel: user.usrNivAcesso  }, process.env.SECRET_JWT_REFRESH, {
         //    expiresIn: '2h'
         //});
-        //console.log(user);
+        console.log(user);
         
         return response.json(user);
 
@@ -138,7 +138,7 @@ module.exports = {
        
         const user = await connection('usuarios')
             .where('usrId', id)
-            .select('usrId','usrNome','usrNascimento', 'usrCpf' )
+            .select('usrId','usrNome','usrNascimento', 'usrCpf')
             .first();
           
         if (!user) {
@@ -146,6 +146,24 @@ module.exports = {
         } 
 
         const dados = year + seconds + minutes + month + day + user.usrCpf + hours + id + user.usrNome 
+
+        //console.log(dados);
+
+        return response.json(dados);
+    },
+
+    async busSaldo(request, response) {
+        let id = request.params.idUsr;
+        const user = await connection('usuarios')
+            .where('usrId', id)
+            .select('usrSldDisponivel')
+            .first();
+          
+        if (!user) {
+            return response.status(400).json({ error: 'Não encontrou usuário c/ este CPF'});
+        } 
+
+        const dados = user.usrSldDisponivel; 
 
         //console.log(dados);
 
