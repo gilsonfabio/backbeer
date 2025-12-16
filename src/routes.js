@@ -9,6 +9,7 @@ const LinhasController = require('./controllers/LinhasController');
 const EfipayController = require('./controllers/EfipayController');
 const CreditosController = require('./controllers/CreditosController');
 const ConsumosController = require('./controllers/ConsumosController');
+const MercadoPagoController = require('./controllers/MercadoPagoController');
 
 routes.get('/', (request, response) => {
     response.json({
@@ -44,12 +45,14 @@ routes.get('/searchSaldo/:id', CreditosController.searchSaldo);
 routes.get('/linhas/:idGrp', LinhasController.index);
 routes.post('/newlinha', LinhasController.create);
 
-routes.post('/authorize', EfipayController.auth);
-routes.post('/webhook', EfipayController.webhook);
-routes.post('/certificado', EfipayController.certificado);
+//routes.post('/authorize', EfipayController.auth);
+//routes.post('/webhook', EfipayController.webhook);
+//routes.post('/certificado', EfipayController.certificado);
 
 routes.get('/consumos', ConsumosController.index);
 routes.post('/newconsumo', ConsumosController.create);
 routes.get('/historico/:id', ConsumosController.historico);
+
+routes.post('/authorize', MercadoPagoController.authorize);
 
 module.exports = routes;
