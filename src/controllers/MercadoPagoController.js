@@ -5,6 +5,15 @@ mercadopago.configure({
   access_token: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
+/*
+
+const [lnhId] = await connection('linhas').insert({
+  lnhDescricao, 
+});
+
+*/
+
+
 module.exports = { 
   async authorize(req, res) {
     try {
@@ -14,12 +23,10 @@ module.exports = {
         return res.status(400).json({ error: 'Dados inválidos' });
       }
 
-      const [creditos] = await db.query(
-        `SELECT creId, creValor, creStatus
-        FROM creditos
-        WHERE creId = ? AND creUsrId = ?`,
-        [creId, creUsrId]
-      );
+      const [creditos] = await db('creditos')
+        .where('creId', creId)
+        .where('creUsrId', creUsrId)
+        .select('creId, creValor', 'creStatus');
 
       if (!creditos.length) {
         return res.status(404).json({ error: 'Crédito não encontrado' });
@@ -52,12 +59,11 @@ module.exports = {
       const transaction =
         pagamento.response.point_of_interaction.transaction_data;
 
-      await db.query(
-        `UPDATE creditos
-        SET creStatus = 'pending'
-        WHERE creId = ?`,
-        [credito.creId]
-      );
+      await db('creditos')
+        .where('creId', credito.creId)
+        .update({
+          creStatus: 'pending'
+        });
 
       return res.json({
         paymentId: pagamento.response.id,
@@ -91,26 +97,27 @@ module.exports = {
   
       if (!creId) return res.sendStatus(200);
   
-      const [rows] = await db.query(
-        `SELECT creStatus FROM creditos WHERE creId = ?`,
-        [creId]
-      );
-  
+      const [rows] = await db('creditos')
+      .where('creId', creId)
+      .select('creStatus');
+          
       if (!rows.length) return res.sendStatus(200);
       if (rows[0].creStatus === 'paid') return res.sendStatus(200);
   
       if (status === 'approved') {
-        await db.query(
-          `UPDATE creditos SET creStatus = 'paid' WHERE creId = ?`,
-          [creId]
-        );
+        await db('creditos')
+        .where('creId', creId)
+        .update({
+          creStatus: 'paid'
+        });
       }
   
       if (status === 'cancelled' || status === 'expired') {
-        await db.query(
-          `UPDATE creditos SET creStatus = ? WHERE creId = ?`,
-          [status, creId]
-        );
+        await db('creditos')
+        .where('creId', creId)
+        .update({
+          creStatus: status
+        });
       }
   
       return res.sendStatus(200);
