@@ -1,69 +1,154 @@
 const mercadopago = require('mercadopago');
 const db = require('../database/connection');
 
-// Configuração do Mercado Pago
+// Configuração Mercado Pago
 mercadopago.configure({
   access_token: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
 async function authorize(req, res) {
-  try {
-    const { creUsrId, creId, creValor } = req.body;
-
-    // 🔐 Validações básicas
-    if (!creUsrId || !creId || !creValor) {
-      return res.status(400).json({ error: 'Dados inválidos' });
+    try {
+      const { creId, creUsrId } = req.body;
+  
+      // 1️⃣ Validação básica
+      if (!creId || !creUsrId) {
+        return res.status(400).json({ error: 'Dados inválidos' });
+      }
+  
+      // 2️⃣ Busca crédito
+      const [creditos] = await db.query(
+        `SELECT creId, creValor, creStatus
+         FROM creditos
+         WHERE creId = ? AND creUsrId = ?`,
+        [creId, creUsrId]
+      );
+  
+      if (!creditos.length) {
+        return res.status(404).json({ error: 'Crédito não encontrado' });
+      }
+  
+      const credito = creditos[0];
+  
+      // 3️⃣ Já pago
+      if (credito.creStatus === 'paid') {
+        return res.status(400).json({ error: 'Crédito já pago' });
+      }
+  
+      // 4️⃣ PIX já gerado e pendente
+      if (credito.creStatus === 'pending') {
+        return res.json({
+          creId: credito.creId,
+          status: 'pending',
+          message: 'PIX já gerado, aguardando pagamento',
+        });
+      }
+  
+      // 5️⃣ Criação do PIX
+      const pagamento = await mercadopago.payment.create({
+        transaction_amount: Number(credito.creValor),
+        description: 'Recarga de créditos',
+        payment_method_id: 'pix',
+        external_reference: String(credito.creId),
+        payer: {
+          email: `user_${creUsrId}@app.com`,
+        },
+      });
+  
+      const transaction =
+        pagamento.response.point_of_interaction.transaction_data;
+  
+      // 6️⃣ Atualiza crédito como pendente
+      await db.query(
+        `UPDATE creditos
+         SET creStatus = 'pending'
+         WHERE creId = ?`,
+        [credito.creId]
+      );
+  
+      // 7️⃣ Retorno para o frontend
+      return res.json({
+        paymentId: pagamento.response.id,
+        creId: credito.creId,
+        valor: credito.creValor,
+        status: pagamento.response.status,
+        qrcode: transaction.qr_code,
+        imagemQrcode: transaction.qr_code_base64,
+        expiresAt: transaction.expiration_date,
+      });
+  
+    } catch (error) {
+      console.error('❌ Erro ao gerar PIX:', error);
+      return res.status(500).json({ error: 'Erro ao gerar PIX' });
     }
-
-    // Evita duplicar PIX para o mesmo crédito
-    const [existe] = await db.query(
-      'SELECT id FROM pix_pagamentos WHERE cre_id = ? AND status = "pending"',
-      [creId]
-    );
-
-    if (existe.length) {
-      return res.status(200).json(existe[0]);
-    }
-
-    // 💳 Cria pagamento PIX no Mercado Pago
-    const pagamento = await mercadopago.payment.create({
-      transaction_amount: Number(creValor),
-      description: 'Recarga de crédito',
-      payment_method_id: 'pix',
-      external_reference: String(creId), // 🔑 ligação com crédito
-      payer: {
-        email: `user_${creUsrId}@app.com`,
-      },
-    });
-
-    const pix =
-      pagamento.response.point_of_interaction.transaction_data;
-
-    // 💾 Salva pagamento no banco
-    //await db.query(
-    //  `INSERT INTO pix_pagamentos 
-    //   (payment_id, cre_id, user_id, valor, status) 
-    //   VALUES (?, ?, ?, ?, ?)`,
-    //  [
-    //    pagamento.response.id,
-    //    creId,
-    //    creUsrId,
-    //    creValor,
-    //    pagamento.response.status,
-    //  ]
-    //);
-
-    // 📤 Retorno para o frontend
-    return res.json({
-      paymentId: pagamento.response.id,
-      imagemQrcode: pix.qr_code_base64,
-      qrcode: pix.qr_code,
-      status: pagamento.response.status,
-    });
-  } catch (error) {
-    console.error('❌ Erro ao gerar PIX:', error);
-    return res.status(500).json({ error: 'Erro ao gerar PIX' });
-  }
 }
-
+  
 module.exports = { authorize };
+
+async function webhook(req, res) {
+    try {
+      const { type, data } = req.body;
+  
+      // 1️⃣ Ignora eventos que não são de pagamento
+      if (type !== 'payment' || !data?.id) {
+        return res.sendStatus(200);
+      }
+  
+      const paymentId = data.id;
+  
+      // 2️⃣ Consulta pagamento real no Mercado Pago
+      const payment = await mercadopago.payment.get(paymentId);
+  
+      const status = payment.response.status;
+      const creId = payment.response.external_reference;
+  
+      // 3️⃣ Sem referência, ignora
+      if (!creId) {
+        return res.sendStatus(200);
+      }
+  
+      // 4️⃣ Busca status atual do crédito (idempotência)
+      const [rows] = await db.query(
+        `SELECT creStatus FROM creditos WHERE creId = ?`,
+        [creId]
+      );
+  
+      if (!rows.length) {
+        return res.sendStatus(200);
+      }
+  
+      const statusAtual = rows[0].creStatus;
+  
+      // 5️⃣ Evita reprocessar pagamento já confirmado
+      if (statusAtual === 'paid') {
+        return res.sendStatus(200);
+      }
+  
+      // 6️⃣ Processa status
+      if (status === 'approved') {
+        await db.query(
+          `UPDATE creditos
+           SET creStatus = 'paid'
+           WHERE creId = ?`,
+          [creId]
+        );
+      }
+  
+      if (status === 'cancelled' || status === 'expired') {
+        await db.query(
+          `UPDATE creditos
+           SET creStatus = ?
+           WHERE creId = ?`,
+          [status, creId]
+        );
+      }
+  
+      return res.sendStatus(200);
+  
+    } catch (error) {
+      console.error('❌ Erro webhook:', error);
+      return res.sendStatus(500);
+    }
+}
+  
+module.exports = { webhook };
+  
