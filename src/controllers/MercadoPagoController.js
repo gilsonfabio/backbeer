@@ -5,15 +5,6 @@ mercadopago.configure({
   access_token: process.env.MERCADOPAGO_ACCESS_TOKEN,
 });
 
-/*
-
-const [lnhId] = await connection('linhas').insert({
-  lnhDescricao, 
-});
-
-*/
-
-
 module.exports = { 
   async authorize(req, res) {
     try {
@@ -23,10 +14,10 @@ module.exports = {
         return res.status(400).json({ error: 'Dados inválidos' });
       }
 
-      const [creditos] = await db('creditos')
+      const creditos = await db('creditos')
         .where('creId', creId)
         .where('creUsrId', creUsrId)
-        .select('creId, creValor', 'creStatus');
+        .select('creId', 'creValor', 'creStatus');
 
       if (!creditos.length) {
         return res.status(404).json({ error: 'Crédito não encontrado' });
@@ -61,9 +52,7 @@ module.exports = {
 
       await db('creditos')
         .where('creId', credito.creId)
-        .update({
-          creStatus: 'pending'
-        });
+        .update({ creStatus: 'pending' });
 
       return res.json({
         paymentId: pagamento.response.id,
