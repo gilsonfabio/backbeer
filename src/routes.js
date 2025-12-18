@@ -54,5 +54,6 @@ routes.post('/newconsumo', ConsumosController.create);
 routes.get('/historico/:id', ConsumosController.historico);
 
 routes.post('/authorize', MercadoPagoController.authorize);
+routes.post('/webhook', MercadoPagoController.webhook);
 
 module.exports = routes;
