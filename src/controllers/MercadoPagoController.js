@@ -99,7 +99,7 @@ module.exports = {
   
       const rows = await db('creditos')
         .where('creId', creId)
-        .select('creStatus');
+        .select('creStatus', 'creUsrId', 'creValor');
   
       if (!rows.length) {
         console.warn('Crédito não encontrado:', creId);
@@ -114,6 +114,10 @@ module.exports = {
         await db('creditos')
           .where('creId', creId)
           .update({ creStatus: 'paid' });
+
+        await db('usuarios')
+          .where('usrId', rows[0].creUsrId)
+          .increment('usrSldDisponivel', rows[0].creValor);
       }
   
       if (status === 'cancelled' || status === 'expired') {
