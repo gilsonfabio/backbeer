@@ -69,54 +69,69 @@ module.exports = {
       return res.status(500).json({ error: 'Erro ao gerar PIX' });
     }
   },
-
+  
   async webhook(req, res) {
     try {
       const { type, data } = req.body;
   
+      // 🔒 Ignora eventos que não são pagamento
       if (type !== 'payment' || !data?.id) {
         return res.sendStatus(200);
       }
   
       const paymentId = data.id;
+  
       const payment = await mercadopago.payment.get(paymentId);
+      const response = payment?.response;
   
-      const status = payment.response.status;
-      const creId = payment.response.external_reference;
+      if (!response) {
+        console.warn('Webhook sem response:', paymentId);
+        return res.sendStatus(200);
+      }
   
-      if (!creId) return res.sendStatus(200);
+      const status = response.status;
+      const creId = response.external_reference;
   
-      const [rows] = await db('creditos')
-      .where('creId', creId)
-      .select('creStatus');
-          
-      if (!rows.length) return res.sendStatus(200);
-      if (rows[0].creStatus === 'paid') return res.sendStatus(200);
+      if (!creId || !status) {
+        console.warn('Webhook incompleto:', response);
+        return res.sendStatus(200);
+      }
+  
+      const rows = await db('creditos')
+        .where('creId', creId)
+        .select('creStatus');
+  
+      if (!rows.length) {
+        console.warn('Crédito não encontrado:', creId);
+        return res.sendStatus(200);
+      }
+  
+      if (rows[0].creStatus === 'paid') {
+        return res.sendStatus(200);
+      }
   
       if (status === 'approved') {
         await db('creditos')
-        .where('creId', creId)
-        .update({
-          creStatus: 'paid'
-        });
+          .where('creId', creId)
+          .update({ creStatus: 'paid' });
       }
   
       if (status === 'cancelled' || status === 'expired') {
         await db('creditos')
-        .where('creId', creId)
-        .update({
-          creStatus: status
-        });
+          .where('creId', creId)
+          .update({ creStatus: status });
       }
   
       return res.sendStatus(200);
   
     } catch (error) {
-      console.error('❌ Erro webhook:', error);
-      return res.sendStatus(500);
+      console.error('❌ Erro webhook Mercado Pago:', error);
+  
+      // ⚠️ SEMPRE 200
+      return res.sendStatus(200);
     }
   },
-
+  
 }  
 
 
